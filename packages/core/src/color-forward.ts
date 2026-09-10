@@ -7,7 +7,7 @@ type ParamDict = Record<string, string | number | boolean | undefined>;
  * wgpu/src/params.rs `color_settings_uniform`. The reference matcher has to
  * evaluate the grade thousands of times on a thumbnail while searching, which
  * rules out standing up a GPU context; keeping the port beside the shader is
- * the tradeoff. Any edit to that shader must land here too — colorForward.test
+ * the tradeoff. Any edit to that shader must land here too; match-color.test.ts
  * pins the values that would drift.
  */
 

@@ -1,7 +1,7 @@
 /**
  * Statistics used to compare a graded frame against a reference. Source and
- * reference are different scenes, so nothing here compares pixels positionally
- * — only distributions.
+ * reference are different scenes, so nothing here compares pixels positionally,
+ * only distributions.
  */
 
 /** Percentiles sampled per channel. Spread across the range so the fit sees

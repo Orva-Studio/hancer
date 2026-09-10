@@ -114,7 +114,7 @@ function minimize1D(
  * Coordinate descent alone stalls here: exposure, contrast, highlights and
  * fade reshape the same tone curve, so the loss surface has long diagonal
  * valleys that no single-axis move can descend. The simplex can travel along
- * them. Coordinate descent still runs first — it lands close on the
+ * them. Coordinate descent still runs first: it lands close on the
  * separable parameters cheaply, and Nelder-Mead converges far faster from
  * there than from the defaults.
  */

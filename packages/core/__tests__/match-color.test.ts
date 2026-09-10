@@ -112,7 +112,7 @@ describe("round trip", () => {
     });
   }
 
-  // Parameters that are individually identifiable from one frame — these are
+  // Parameters that are individually identifiable from one frame. These are
   // the ones whose slider positions should be trustworthy in the UI. Exposure
   // and fade are excluded on purpose; both trade against contrast.
   const identifiable: Array<{ key: string; value: number; tolerance: number }> = [

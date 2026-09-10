@@ -18,6 +18,7 @@ Commands:
   hance <input>...            render video/images with effects (default; flags below)
   hance ui [--port <n>]       launch the browser UI for live tweaking
   hance preview <input>       render a single preview frame or contact sheet
+  hance match <ref> <src>     print the colour flags that match a reference look
   hance preset list|save      list presets or save current flags as one
   hance config [path]         show the resolved config (or just its file path)
   hance skills [get <name>]   print the agent skill docs (for AI harnesses)
@@ -60,13 +61,14 @@ Examples:
   hance *.jpg -o ./graded/ --export high          batch images into a directory, high-quality export
   hance shot.mov --grain-iso 800 --no-halation   tweak one effect, disable another
   hance shot.mov --exposure 0.5 --contrast 1.2    quick color grade
+  hance match still.jpg shot.mov                  match the colour of a reference still
   hance preset save mylook --bleach-bypass 0.4    save current flags as a reusable preset
 
 Agents: run "hance skills" first for the agent skill router.
 Docs: https://hance.video/docs  (agent guide: https://hance.video/docs/agent/overview)
 `.trim();
 
-export type Subcommand = "ui" | "preview" | "preset" | "config" | "skills" | "render";
+export type Subcommand = "ui" | "preview" | "preset" | "config" | "skills" | "match" | "render";
 
 export function resolveSubcommand(args: string[]): Subcommand {
   switch (args[0]) {
@@ -75,6 +77,7 @@ export function resolveSubcommand(args: string[]): Subcommand {
     case "preset": return "preset";
     case "config": return "config";
     case "skills": return "skills";
+    case "match": return "match";
     default: return "render";
   }
 }
@@ -238,6 +241,12 @@ async function main() {
   if (sub === "skills") {
     const { runSkills } = await import("./commands/skills");
     await runSkills(args.slice(1));
+    return;
+  }
+
+  if (sub === "match") {
+    const { runMatch } = await import("./commands/match");
+    await runMatch(args.slice(1));
     return;
   }
 
