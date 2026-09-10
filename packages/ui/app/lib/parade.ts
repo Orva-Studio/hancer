@@ -32,7 +32,7 @@ export function paradeWidth(columns = PARADE_COLUMNS): number {
  * Bin an RGBA buffer into per-channel column histograms.
  *
  * Counts are normalised against the single busiest bin across all three
- * channels rather than per channel, so the panels stay comparable — a channel
+ * channels rather than per channel, so the panels stay comparable: a channel
  * that genuinely carries less signal should look dimmer, not be rescaled to
  * match the others.
  */
@@ -69,6 +69,15 @@ export function computeParade(
         }
       }
     }
+
+    // Columns can cover an uneven number of source columns when the sample is
+    // not the scope's own width. Without this a flat field bands, because the
+    // shared-peak normalisation that follows would compare raw counts from
+    // buckets of different sizes.
+    const contributing = (x1 - x0) * height;
+    for (const channel of channels) {
+      for (let bin = 0; bin < bins; bin++) channel[column * bins + bin]! /= contributing;
+    }
   }
 
   let peak = 0;
@@ -89,7 +98,7 @@ export function computeParade(
  *
  * `gain` lifts faint traces: a scope is mostly sparse, and without it a normal
  * image shows only the few bins where flat areas pile up. The square root is
- * the conventional scope response — it compresses the peaks that a handful of
+ * the conventional scope response, compressing the peaks that a handful of
  * flat regions produce without crushing the rest of the trace.
  */
 export function paradeImageData(
@@ -139,8 +148,8 @@ export function sampleCanvas(
 ): ImageData | null {
   if (source.width === 0 || source.height === 0) return null;
 
-  target.width = width;
-  target.height = height;
+  if (target.width !== width) target.width = width;
+  if (target.height !== height) target.height = height;
   const ctx = target.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
 

@@ -10,7 +10,7 @@ interface Props {
 }
 
 /** Scope refresh rate. Reading pixels back stalls the GPU, so this stays well
- * under the preview's frame rate — a scope only has to track the eye. */
+ * under the preview's frame rate: a scope only has to track the eye. */
 const REFRESH_HZ = 12;
 
 const GRATICULE = [0, 0.25, 0.5, 0.75, 1];
@@ -70,6 +70,7 @@ export function Parade({ canvas, onClose }: Props) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
+      samplerRef.current = null;
     };
   }, [canvas]);
 
@@ -85,16 +86,21 @@ export function Parade({ canvas, onClose }: Props) {
           ×
         </button>
       </div>
-      <div className="flex px-2 pt-2 gap-2 text-[9px] text-zinc-500 tracking-wider">
-        <span style={{ width: PARADE_COLUMNS / 2 }}>R</span>
-        <span style={{ width: PARADE_COLUMNS / 2 }}>G</span>
-        <span style={{ width: PARADE_COLUMNS / 2 }}>B</span>
+      <div className="flex flex-col gap-1 px-2 pt-2 pb-2">
+        <div
+          className="flex text-[9px] text-zinc-500 tracking-wider"
+          style={{ width: paradeWidth() / 2, gap: PANEL_GAP / 2 }}
+        >
+          <span className="text-center" style={{ width: PARADE_COLUMNS / 2 }}>R</span>
+          <span className="text-center" style={{ width: PARADE_COLUMNS / 2 }}>G</span>
+          <span className="text-center" style={{ width: PARADE_COLUMNS / 2 }}>B</span>
+        </div>
+        <canvas
+          ref={outputRef}
+          className="block bg-black"
+          style={{ width: paradeWidth() / 2, height: PARADE_BINS / 2 }}
+        />
       </div>
-      <canvas
-        ref={outputRef}
-        className="block bg-black"
-        style={{ width: paradeWidth() / 2, height: PARADE_BINS / 2 }}
-      />
       {!canvas && (
         <div className="px-2.5 py-2 text-[10px] text-zinc-500">Waiting for a frame</div>
       )}

@@ -87,6 +87,55 @@ describe("computeParade", () => {
     expect(peakBin(red, parade.columns - 1, parade.bins)).toBe(parade.bins - 1);
   });
 
+  test("every column is filled when the source is narrower than the scope", () => {
+    // The comb case: a scatter mapping would leave most columns empty here.
+    const parade = computeParade(flat(8, 4, 200, 200, 200), 8, 4);
+    for (let column = 0; column < parade.columns; column++) {
+      const total = parade.channels[0]!
+        .subarray(column * parade.bins, (column + 1) * parade.bins)
+        .reduce((sum, v) => sum + v, 0);
+      expect(total).toBeGreaterThan(0);
+    }
+  });
+
+  test("a flat field reads at even brightness whatever the sample width", () => {
+    // Uneven bucket sizes must not band the trace, so per-column counts are
+    // divided by how many source pixels fed them.
+    for (const width of [10, 192, 640]) {
+      const parade = computeParade(flat(width, 8, 255, 255, 255), width, 8);
+      const red = parade.channels[0]!;
+      const peaks = [];
+      for (let column = 0; column < parade.columns; column++) {
+        peaks.push(red[column * parade.bins + (parade.bins - 1)]!);
+      }
+      const min = Math.min(...peaks);
+      const max = Math.max(...peaks);
+      expect(max - min).toBeLessThan(1e-6);
+    }
+  });
+
+  test("no source column is dropped when the source is wider than the scope", () => {
+    // One bright column against black: it must survive into some output column.
+    const width = 600;
+    const height = 4;
+    const pixels = new Uint8ClampedArray(width * height * 4);
+    for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255;
+    for (let y = 0; y < height; y++) {
+      const i = (y * width + 417) * 4;
+      pixels[i] = 255;
+      pixels[i + 1] = 255;
+      pixels[i + 2] = 255;
+    }
+
+    const parade = computeParade(pixels, width, height);
+    const red = parade.channels[0]!;
+    let bright = 0;
+    for (let column = 0; column < parade.columns; column++) {
+      if (red[column * parade.bins + (parade.bins - 1)]! > 0) bright++;
+    }
+    expect(bright).toBeGreaterThan(0);
+  });
+
   test("empty input does not throw", () => {
     const parade = computeParade(new Uint8ClampedArray(0), 0, 0);
     expect(parade.channels[0]!.every(v => v === 0)).toBe(true);
