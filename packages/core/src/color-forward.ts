@@ -94,7 +94,7 @@ export function whiteBalanceGain(kelvin: number): [number, number, number] {
 
 /**
  * Apply the colour-settings pass to one RGB triple in place-free form.
- * Inputs and outputs are 0–1 linear-in-texture values, exactly as the shader
+ * Inputs and outputs are 0-1 linear-in-texture values, exactly as the shader
  * sees them.
  */
 export function applyColorSettings(

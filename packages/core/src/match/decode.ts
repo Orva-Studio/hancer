@@ -14,7 +14,7 @@ export const SAMPLE_HEIGHT = 180;
 
 const EXPECTED_BYTES = SAMPLE_WIDTH * SAMPLE_HEIGHT * 3;
 
-/** Convert an interleaved rgb24 byte buffer to 0–1 floats. */
+/** Convert an interleaved rgb24 byte buffer to 0-1 floats. */
 export function rgbBytesToFloats(bytes: Uint8Array): Float32Array {
   const out = new Float32Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) out[i] = bytes[i]! / 255;
@@ -22,7 +22,7 @@ export function rgbBytesToFloats(bytes: Uint8Array): Float32Array {
 }
 
 /**
- * Decode one representative frame as interleaved RGB floats in 0–1.
+ * Decode one representative frame as interleaved RGB floats in 0-1.
  *
  * The `thumbnail` filter picks the most representative frame from the opening
  * batch rather than the first, which is often a fade from black and would

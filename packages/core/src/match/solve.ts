@@ -109,7 +109,7 @@ function minimize1D(
 }
 
 /**
- * Nelder-Mead over the whole parameter vector, in normalised 0–1 space.
+ * Nelder-Mead over the whole parameter vector, in normalised 0-1 space.
  *
  * Coordinate descent alone stalls here: exposure, contrast, highlights and
  * fade reshape the same tone curve, so the loss surface has long diagonal
@@ -167,9 +167,17 @@ function nelderMead(
       simplex[worst] = reflected;
       values[worst] = fReflected;
     } else {
-      const contracted = centroid.map((c, i) => c + 0.5 * (simplex[worst]![i]! - c));
+      // Contract toward whichever side is better: outside when the reflection
+      // improved on the worst point, inside when it did not. Inside-only
+      // contraction leaves the simplex crawling down long diagonal valleys,
+      // which is the shape this loss surface actually has.
+      const outside = fReflected < values[worst]!;
+      const target = outside ? reflected : simplex[worst]!;
+      const contracted = centroid.map((c, i) => c + 0.5 * (target[i]! - c));
       const fContracted = evaluate(contracted);
-      if (fContracted < values[worst]!) {
+      const accept = outside ? fContracted <= fReflected : fContracted < values[worst]!;
+
+      if (accept) {
         simplex[worst] = contracted;
         values[worst] = fContracted;
       } else {
@@ -190,7 +198,7 @@ function nelderMead(
  * Fit the colour-settings parameters that carry a look from `source` toward
  * the distribution of `reference`.
  *
- * Both buffers are interleaved RGB in 0–1. They are different scenes, so the
+ * Both buffers are interleaved RGB in 0-1. They are different scenes, so the
  * fit matches distributions, never pixels.
  */
 export function matchColorParams(
@@ -253,8 +261,13 @@ export function matchColorParams(
     return candidate;
   };
 
-  const polished = nelderMead(x => score(fromNormalized(x)), toNormalized(params), 0.08, 900);
-  if (polished.value < score(params)) Object.assign(params, fromNormalized(polished.x));
+  function polish(): void {
+    const before = score(params);
+    const result = nelderMead(x => score(fromNormalized(x)), toNormalized(params), 0.08, 900);
+    if (result.value < before) Object.assign(params, fromNormalized(result.x));
+  }
+
+  polish();
 
   // Only worth searching once the blacks are actually lifted; a tint on
   // unlifted blacks is invisible and the search would pick a colour at random.
@@ -269,6 +282,11 @@ export function matchColorParams(
       }
     }
     params["fade-color"] = bestColor;
+
+    // The continuous parameters were fitted against a neutral lift. A tinted
+    // one shifts the target they were solving for, so they need re-fitting
+    // against the colour actually chosen.
+    if (bestColor !== "neutral") polish();
   }
 
   return {

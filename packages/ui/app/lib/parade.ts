@@ -13,7 +13,7 @@ export const PANEL_GAP = 8;
 export interface ParadeData {
   columns: number;
   bins: number;
-  /** Per channel, `columns * bins` counts normalised to 0–1, row 0 = black. */
+  /** Per channel, `columns * bins` counts normalised to 0-1, row 0 = black. */
   channels: [Float32Array, Float32Array, Float32Array];
 }
 
