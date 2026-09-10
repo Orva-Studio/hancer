@@ -1,27 +1,32 @@
 import { useRef, useEffect } from "react";
+import type { Renderer } from "../gpu/renderer";
 import {
-  computeParade, paradeImageData, sampleCanvas, paradeWidth,
+  computeParade, paradeImageData, paradeWidth,
   PARADE_COLUMNS, PARADE_BINS, PANEL_GAP,
 } from "../lib/parade";
 
 interface Props {
+  renderer: Renderer | null;
   canvas: HTMLCanvasElement | null;
   onClose: () => void;
 }
 
-/** Scope refresh rate. Reading pixels back stalls the GPU, so this stays well
+/** Scope refresh rate. Each tick costs a GPU readback, so this stays well
  * under the preview's frame rate: a scope only has to track the eye. */
-const REFRESH_HZ = 12;
+const REFRESH_HZ = 10;
+
+/** Rows sampled per tick. The parade bins columns, so dropping rows costs
+ * nothing but noise while keeping a full-resolution readback affordable. */
+const TARGET_ROWS = 120;
 
 const GRATICULE = [0, 0.25, 0.5, 0.75, 1];
 
-export function Parade({ canvas, onClose }: Props) {
+export function Parade({ renderer, canvas, onClose }: Props) {
   const outputRef = useRef<HTMLCanvasElement>(null);
-  const samplerRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef(0);
 
   useEffect(() => {
-    if (!canvas || !outputRef.current) return;
+    if (!renderer || !canvas || !outputRef.current) return;
 
     const output = outputRef.current;
     const width = paradeWidth();
@@ -32,47 +37,62 @@ export function Parade({ canvas, onClose }: Props) {
     const ctx = output.getContext("2d");
     if (!ctx) return;
 
-    if (!samplerRef.current) samplerRef.current = document.createElement("canvas");
-    const sampler = samplerRef.current;
-
     let cancelled = false;
     let lastDraw = 0;
+    let inFlight = false;
 
-    function draw(now: number) {
+    async function tick(now: number) {
       if (cancelled) return;
-      rafRef.current = requestAnimationFrame(draw);
-      if (now - lastDraw < 1000 / REFRESH_HZ) return;
+      rafRef.current = requestAnimationFrame(tick);
+      if (inFlight || now - lastDraw < 1000 / REFRESH_HZ) return;
       lastDraw = now;
+      inFlight = true;
 
-      const sample = sampleCanvas(canvas!, sampler);
-      if (!sample) return;
+      try {
+        // Reads the renderer's own output texture rather than the canvas: a
+        // WebGPU canvas snapshots as empty through drawImage, which silently
+        // produced an all-black trace.
+        const pixels = await renderer!.readPixels();
+        if (cancelled) return;
 
-      const parade = computeParade(sample.data, sample.width, sample.height);
-      const image = paradeImageData(parade);
+        const sourceWidth = canvas!.width;
+        const sourceHeight = canvas!.height;
+        if (sourceWidth === 0 || sourceHeight === 0) return;
 
-      ctx!.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+        const rowStep = Math.max(1, Math.floor(sourceHeight / TARGET_ROWS));
+        const parade = computeParade(
+          pixels, sourceWidth, sourceHeight, PARADE_COLUMNS, PARADE_BINS, rowStep,
+        );
+        const image = paradeImageData(parade);
 
-      ctx!.strokeStyle = "rgba(255,255,255,0.14)";
-      ctx!.lineWidth = 1;
-      for (let panel = 0; panel < 3; panel++) {
-        const x0 = panel * (PARADE_COLUMNS + PANEL_GAP);
-        for (const level of GRATICULE) {
-          const y = Math.round((1 - level) * (height - 1)) + 0.5;
-          ctx!.beginPath();
-          ctx!.moveTo(x0, y);
-          ctx!.lineTo(x0 + PARADE_COLUMNS, y);
-          ctx!.stroke();
+        ctx!.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+
+        ctx!.strokeStyle = "rgba(255,255,255,0.14)";
+        ctx!.lineWidth = 1;
+        for (let panel = 0; panel < 3; panel++) {
+          const x0 = panel * (PARADE_COLUMNS + PANEL_GAP);
+          for (const level of GRATICULE) {
+            const y = Math.round((1 - level) * (height - 1)) + 0.5;
+            ctx!.beginPath();
+            ctx!.moveTo(x0, y);
+            ctx!.lineTo(x0 + PARADE_COLUMNS, y);
+            ctx!.stroke();
+          }
         }
+      } catch {
+        // A readback can fail while the renderer is being torn down or the
+        // source swapped. The next tick picks it back up.
+      } finally {
+        inFlight = false;
       }
     }
 
-    rafRef.current = requestAnimationFrame(draw);
+    rafRef.current = requestAnimationFrame(tick);
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
-      samplerRef.current = null;
     };
-  }, [canvas]);
+  }, [renderer, canvas]);
 
   return (
     <div className="absolute bottom-3 right-3 z-20 bg-zinc-900/95 backdrop-blur border border-zinc-700 rounded-md overflow-hidden shadow-lg">
@@ -101,8 +121,8 @@ export function Parade({ canvas, onClose }: Props) {
           style={{ width: paradeWidth() / 2, height: PARADE_BINS / 2 }}
         />
       </div>
-      {!canvas && (
-        <div className="px-2.5 py-2 text-[10px] text-zinc-500">Waiting for a frame</div>
+      {!renderer && (
+        <div className="px-2.5 pb-2 text-[10px] text-zinc-500">Waiting for a frame</div>
       )}
     </div>
   );

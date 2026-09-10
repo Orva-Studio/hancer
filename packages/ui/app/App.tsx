@@ -665,7 +665,7 @@ export function App() {
           )}
 
           {showParade && file && (
-            <Parade canvas={canvas} onClose={() => setShowParade(false)} />
+            <Parade renderer={renderer} canvas={canvas} onClose={() => setShowParade(false)} />
           )}
         </div>
 

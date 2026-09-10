@@ -37,11 +37,12 @@ export function paradeWidth(columns = PARADE_COLUMNS): number {
  * match the others.
  */
 export function computeParade(
-  pixels: Uint8ClampedArray,
+  pixels: Uint8Array | Uint8ClampedArray,
   width: number,
   height: number,
   columns = PARADE_COLUMNS,
   bins = PARADE_BINS,
+  rowStep = 1,
 ): ParadeData {
   const channels: [Float32Array, Float32Array, Float32Array] = [
     new Float32Array(columns * bins),
@@ -60,8 +61,10 @@ export function computeParade(
     const x0 = Math.min(width - 1, Math.floor((column * width) / columns));
     const x1 = Math.max(x0 + 1, Math.min(width, Math.floor(((column + 1) * width) / columns)));
 
+    let rows = 0;
     for (let x = x0; x < x1; x++) {
-      for (let y = 0; y < height; y++) {
+      for (let y = 0; y < height; y += rowStep) {
+        if (x === x0) rows++;
         const i = (y * width + x) * 4;
         for (let c = 0; c < 3; c++) {
           const bin = Math.min(maxBin, Math.round((pixels[i + c]! / 255) * maxBin));
@@ -74,7 +77,7 @@ export function computeParade(
     // not the scope's own width. Without this a flat field bands, because the
     // shared-peak normalisation that follows would compare raw counts from
     // buckets of different sizes.
-    const contributing = (x1 - x0) * height;
+    const contributing = (x1 - x0) * Math.max(1, rows);
     for (const channel of channels) {
       for (let bin = 0; bin < bins; bin++) channel[column * bins + bin]! /= contributing;
     }
@@ -133,26 +136,4 @@ export function paradeImageData(
   }
 
   return { data: out, width, height };
-}
-
-/**
- * Sample a rendered canvas down to a size the parade can bin quickly.
- * Reading the full preview back every frame is what would cost, not the
- * binning, so the sample is taken small.
- */
-export function sampleCanvas(
-  source: HTMLCanvasElement,
-  target: HTMLCanvasElement,
-  width = PARADE_COLUMNS,
-  height = 120,
-): ImageData | null {
-  if (source.width === 0 || source.height === 0) return null;
-
-  if (target.width !== width) target.width = width;
-  if (target.height !== height) target.height = height;
-  const ctx = target.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return null;
-
-  ctx.drawImage(source, 0, 0, width, height);
-  return ctx.getImageData(0, 0, width, height);
 }
