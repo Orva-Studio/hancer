@@ -16,6 +16,8 @@ interface Props {
   onZoomChange: (z: ZoomLevel) => void;
   panMode: boolean;
   onPanModeChange: (on: boolean) => void;
+  showParade: boolean;
+  onToggleParade: () => void;
 }
 
 function IconNormal() {
@@ -47,6 +49,17 @@ function IconHand() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
       <path d="M10.5 1.875a1.125 1.125 0 0 1 2.25 0v8.219c.517.162 1.02.382 1.5.659V3.375a1.125 1.125 0 0 1 2.25 0v10.937a4.505 4.505 0 0 0-3.25 2.373 8.963 8.963 0 0 1 4-.935A.75.75 0 0 0 18 15v-2.266a3.368 3.368 0 0 1 .988-2.37 1.125 1.125 0 0 1 1.591 1.59 1.118 1.118 0 0 0-.329.79v3.006h-.005a6 6 0 0 1-1.752 4.007l-1.736 1.736a6 6 0 0 1-4.242 1.757H10.5a7.5 7.5 0 0 1-7.5-7.5V6.375a1.125 1.125 0 0 1 2.25 0v5.519c.46-.452.965-.832 1.5-1.141V3.375a1.125 1.125 0 0 1 2.25 0v6.526c.495-.1.997-.151 1.5-.151V1.875Z" />
+    </svg>
+  );
+}
+
+function IconParade() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="3" width="3.5" height="10" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
+      <rect x="6.25" y="3" width="3.5" height="10" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
+      <rect x="11" y="3" width="3.5" height="10" rx="0.5" stroke="currentColor" strokeWidth="1.1" />
+      <path d="M2 9.5h2.5M6.75 7h2.5M11.5 10.5h2.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
     </svg>
   );
 }
@@ -95,7 +108,7 @@ function ZoomDropdown({ zoom, onZoomChange, disabled: isDisabled }: { zoom: Zoom
   );
 }
 
-export function ViewModeToolbar({ mode, onChange, referenceDisabled, splitDisabled, canUndo, canRedo, onUndo, onRedo, zoom, onZoomChange, panMode, onPanModeChange }: Props) {
+export function ViewModeToolbar({ mode, onChange, referenceDisabled, splitDisabled, canUndo, canRedo, onUndo, onRedo, zoom, onZoomChange, panMode, onPanModeChange, showParade, onToggleParade }: Props) {
   const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
   const mod = isMac ? "⌘" : "Ctrl";
   const base = "p-1.5 rounded-sm transition-colors";
@@ -149,6 +162,12 @@ export function ViewModeToolbar({ mode, onChange, referenceDisabled, splitDisabl
         aria-label="Pan tool"
         title="Pan (H)"
       ><IconHand /></button>
+      <button
+        onClick={onToggleParade}
+        className={`${base} ${showParade ? active : idle}`}
+        aria-label="RGB parade"
+        title="RGB parade"
+      ><IconParade /></button>
       <ZoomDropdown zoom={zoom} onZoomChange={onZoomChange} disabled={mode !== "normal"} />
     </div>
   );

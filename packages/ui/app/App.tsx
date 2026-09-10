@@ -22,6 +22,7 @@ import { ExportModal } from "./components/ExportModal";
 import { LutExportModal } from "./components/LutExportModal";
 import { fetchLutCube, downloadCube } from "./lib/bakeLut";
 import { ViewModeToolbar, type ViewMode } from "./components/ViewModeToolbar";
+import { Parade } from "./components/Parade";
 import { CompareOverlay } from "./components/CompareOverlay";
 import type { Renderer, PreviewParams } from "./gpu/renderer";
 import type { EffectGroup } from "@hance/core";
@@ -126,6 +127,7 @@ export function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showLutModal, setShowLutModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("normal");
+  const [showParade, setShowParade] = useState(false);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [splitPosition, setSplitPosition] = useState(0.5);
   const canvasTransform = useCanvasTransform();
@@ -572,6 +574,8 @@ export function App() {
               onRedo={() => applySnapshot(historyRef.current.redo())}
               zoom={canvasTransform.zoom}
               onZoomChange={canvasTransform.setZoom}
+              showParade={showParade}
+              onToggleParade={() => setShowParade(v => !v)}
               panMode={canvasTransform.panMode}
               onPanModeChange={canvasTransform.setPanMode}
             />
@@ -628,6 +632,10 @@ export function App() {
               onPanMouseMove={canvasTransform.onMouseMove}
               onPanMouseUp={canvasTransform.onMouseUp}
             />
+          )}
+
+          {showParade && file && (
+            <Parade canvas={canvas} onClose={() => setShowParade(false)} />
           )}
         </div>
 
