@@ -23,6 +23,8 @@ import { LutExportModal } from "./components/LutExportModal";
 import { fetchLutCube, downloadCube } from "./lib/bakeLut";
 import { ViewModeToolbar, type ViewMode } from "./components/ViewModeToolbar";
 import { Parade } from "./components/Parade";
+import { AiPanel, type AiTurn } from "./components/AiPanel";
+import { captureFrame } from "./lib/captureFrame";
 import { CompareOverlay } from "./components/CompareOverlay";
 import type { Renderer, PreviewParams } from "./gpu/renderer";
 import type { EffectGroup } from "@hance/core";
@@ -128,6 +130,11 @@ export function App() {
   const [showLutModal, setShowLutModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("normal");
   const [showParade, setShowParade] = useState(false);
+  const [panelTab, setPanelTab] = useState<"manual" | "ai">("manual");
+  const [aiTurns, setAiTurns] = useState<AiTurn[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiBaselineRef = useRef<PreviewParams | null>(null);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [splitPosition, setSplitPosition] = useState(0.5);
   const canvasTransform = useCanvasTransform();
@@ -298,6 +305,53 @@ export function App() {
     setParams(prev => ({ ...prev, [key]: value }));
   }, []);
 
+
+  // The model proposes; the renderer stays authoritative and the sliders stay
+  // editable, so a bad suggestion costs one click to undo.
+  const handlePropose = useCallback(async (instruction?: string) => {
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      let image: string | undefined;
+      try {
+        image = await captureFrame(isVideo && videoElement ? videoElement : previewSrc!);
+      } catch { image = undefined; }
+
+      let current: PreviewParams = {};
+      setParams(p => { current = p; return p; });
+      if (!aiBaselineRef.current) aiBaselineRef.current = current;
+
+      const res = await fetch("/api/ai-grade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ params: current, image, instruction }),
+      });
+      const data = await res.json() as { params?: Record<string, number | string>; note?: string; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error || `Request failed (${res.status})`);
+
+      const next = { ...current, ...(data.params ?? {}) };
+      setParams(next);
+      historyRef.current.commit({ params: next, activeLook: activeLookRef.current });
+      setAiTurns(t => [...t, {
+        instruction: instruction ?? null,
+        note: data.note ?? "",
+        params: data.params ?? {},
+      }]);
+    } catch (err) {
+      setAiError((err as Error).message);
+    } finally {
+      setAiBusy(false);
+    }
+  }, [isVideo, videoElement, previewSrc]);
+
+  const handleAiRevert = useCallback(() => {
+    const baseline = aiBaselineRef.current;
+    if (!baseline) return;
+    setParams(baseline);
+    historyRef.current.commit({ params: baseline, activeLook: activeLookRef.current });
+    aiBaselineRef.current = null;
+    setAiTurns([]);
+  }, []);
 
   const handleReset = useCallback(() => {
     if (!activeLookParams) return;
@@ -644,15 +698,44 @@ export function App() {
 
         {/* Right panel — Adjustments */}
         <div className="flex-shrink-0 bg-zinc-900 overflow-hidden" style={{ width: rightPanel.size }}>
-          <AdjustmentsPanel
-            schema={schema}
-            values={params}
-            onChange={handleParamChange}
-            onCommit={commitHistory}
-            onReset={handleReset}
-            canReset={hasChanges}
-            animating={animating}
-          />
+          <div className="flex flex-col h-full">
+            <div className="flex border-b border-zinc-800 flex-shrink-0">
+              {([["manual", "Adjustments"], ["ai", "AI"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPanelTab(key)}
+                  className={`flex-1 text-xs uppercase tracking-wide py-3 transition-colors ${
+                    panelTab === key
+                      ? "text-zinc-200 border-b-2 border-accent"
+                      : "text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent"
+                  }`}
+                >{label}</button>
+              ))}
+            </div>
+            <div className="flex-1 min-h-0">
+              {panelTab === "manual" ? (
+                <AdjustmentsPanel
+                  schema={schema}
+                  values={params}
+                  onChange={handleParamChange}
+                  onCommit={commitHistory}
+                  onReset={handleReset}
+                  canReset={hasChanges}
+                  animating={animating}
+                />
+              ) : (
+                <AiPanel
+                  turns={aiTurns}
+                  busy={aiBusy}
+                  error={aiError}
+                  canRevert={aiBaselineRef.current !== null}
+                  onPropose={handlePropose}
+                  onRevert={handleAiRevert}
+                  onDismissError={() => setAiError(null)}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
