@@ -41,15 +41,3 @@ export { probe, parseProbeOutput } from "./probe";
 export { HANCE_BASE_URL, HANCE_PRO_URL } from "./constants";
 
 export { parseProgress } from "./progress";
-
-export type { ColorUniform } from "./color-forward";
-export {
-  colorUniform, applyColorSettings, applyColorSettingsBuffer, whiteBalanceGain, hueToRgb,
-} from "./color-forward";
-
-export type { MatchReport, MatchOptions, MatchedParams, ColorStats } from "./match";
-export {
-  matchReference, matchColorParams, decodeSampleFrame, rgbBytesToFloats,
-  computeStats, statsDistance, samplePixels,
-  SAMPLE_WIDTH, SAMPLE_HEIGHT, PERCENTILES,
-} from "./match";

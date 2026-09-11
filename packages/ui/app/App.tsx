@@ -23,8 +23,6 @@ import { LutExportModal } from "./components/LutExportModal";
 import { fetchLutCube, downloadCube } from "./lib/bakeLut";
 import { ViewModeToolbar, type ViewMode } from "./components/ViewModeToolbar";
 import { Parade } from "./components/Parade";
-import { readPixels } from "./lib/readPixels";
-import { matchColorParams } from "@hance/core";
 import { CompareOverlay } from "./components/CompareOverlay";
 import type { Renderer, PreviewParams } from "./gpu/renderer";
 import type { EffectGroup } from "@hance/core";
@@ -130,8 +128,6 @@ export function App() {
   const [showLutModal, setShowLutModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("normal");
   const [showParade, setShowParade] = useState(false);
-  const [matching, setMatching] = useState(false);
-  const [matchNotice, setMatchNotice] = useState<string | null>(null);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [splitPosition, setSplitPosition] = useState(0.5);
   const canvasTransform = useCanvasTransform();
@@ -302,31 +298,6 @@ export function App() {
     setParams(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  // Matches against the ungraded source, not the preview canvas: the canvas
-  // already carries the current grade, and fitting to that would compound it.
-  const handleMatchReference = useCallback(async () => {
-    if (!referenceImage || !previewSrc) return;
-    setMatching(true);
-    setMatchNotice(null);
-    try {
-      const [sourcePixels, referencePixels] = await Promise.all([
-        readPixels(isVideo && videoElement ? videoElement : previewSrc),
-        readPixels(referenceImage),
-      ]);
-      const report = matchColorParams(sourcePixels, referencePixels);
-      setParams(prev => {
-        const next = { ...prev, ...report.params };
-        historyRef.current.commit({ params: next, activeLook: activeLookRef.current });
-        return next;
-      });
-      const closer = Math.round((1 - report.distance / report.baseline) * 100);
-      setMatchNotice(`Colour matched, ${closer}% closer. Grain and halation were left alone.`);
-    } catch (err) {
-      setMatchNotice(`Could not match this reference: ${(err as Error).message}`);
-    } finally {
-      setMatching(false);
-    }
-  }, [referenceImage, previewSrc, isVideo, videoElement]);
 
   const handleReset = useCallback(() => {
     if (!activeLookParams) return;
@@ -789,35 +760,19 @@ export function App() {
             isVideo={false}
             canvasRect={canvasRect}
           />
-          <div
-            className="absolute z-30 flex items-center gap-2"
+          <button
+            onClick={() => setReferenceImage(null)}
+            className="absolute text-[11px] text-zinc-300 bg-zinc-800/90 border border-zinc-700 hover:bg-zinc-700 z-30 rounded-sm px-2.5 py-1"
             style={{
               right: `calc(100vw - ${canvasRect.left + canvasRect.width}px + 8px)`,
               top: canvasRect.top + 8,
             }}
-          >
-            <button
-              onClick={handleMatchReference}
-              disabled={matching}
-              title="Set the colour sliders to approximate this reference"
-              className="text-[11px] text-white bg-accent hover:bg-accent-hover disabled:opacity-60 rounded-sm px-2.5 py-1"
-            >{matching ? "Matching…" : "Match colour"}</button>
-            <button
-              onClick={() => setReferenceImage(null)}
-              className="text-[11px] text-zinc-300 bg-zinc-800/90 border border-zinc-700 hover:bg-zinc-700 rounded-sm px-2.5 py-1"
-            >Replace reference</button>
-          </div>
+          >Replace reference</button>
         </>
       )}
 
-      {(schemaError || looksError || openError || importNotice || matchNotice) && (
+      {(schemaError || looksError || openError || importNotice) && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-8 flex flex-col gap-2 z-40">
-          {matchNotice && (
-            <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-600 px-4 py-2 rounded-md text-xs text-zinc-300">
-              <span>{matchNotice}</span>
-              <button onClick={() => setMatchNotice(null)} className="text-zinc-400 hover:text-zinc-200">×</button>
-            </div>
-          )}
           {importNotice && (
             <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-600 px-4 py-2 rounded-md text-xs text-zinc-300">
               <span>{importNotice}</span>
