@@ -5,6 +5,7 @@ import { join, extname, basename, resolve, dirname } from "node:path";
 import { existsSync, readdirSync, mkdirSync, writeFileSync, readFileSync, unlinkSync, renameSync, rmSync, statSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { streamFragmentedMp4, proxyDonePath } from "./lib/transcode";
+import { proposeGrade } from "./lib/ai-grade";
 import pkg from "./package.json";
 
 const pkgVersion: string = pkg.version;
@@ -170,6 +171,30 @@ export function createServer(port: number, hostname?: string, distDir?: string, 
           return new Response(cube, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
         } catch (err) {
           return new Response(`LUT bake failed: ${errorMessage(err)}`, { status: 500 });
+        }
+      }
+
+      if (url.pathname === "/api/ai-grade" && req.method === "POST") {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+          return Response.json(
+            { error: "Set OPENAI_API_KEY to use AI adjustments." }, { status: 503 });
+        }
+        let body: { params?: Record<string, string | number | boolean>; image?: string; instruction?: string };
+        try { body = await req.json() as typeof body; }
+        catch { return new Response("Invalid JSON body", { status: 400 }); }
+        if (!body.params || typeof body.params !== "object") {
+          return new Response("Missing params", { status: 400 });
+        }
+        try {
+          const result = await proposeGrade({
+            params: body.params,
+            image: typeof body.image === "string" ? body.image : undefined,
+            instruction: typeof body.instruction === "string" ? body.instruction : undefined,
+          }, apiKey);
+          return Response.json(result);
+        } catch (err) {
+          return Response.json({ error: errorMessage(err) }, { status: 502 });
         }
       }
 
